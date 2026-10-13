@@ -1,214 +1,209 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { PanelCard } from "@/components/panel-card";
-import { AddPanel } from "@/components/add-panel";
-import type { Panel } from "@/config/panels";
-import { listAccounts, listInstances, listRegions, ALL_REGIONS, type Account } from "@/lib/grafana-api";
-import {
-  loadDashboards, saveDashboards, loadActiveId, saveActiveId, newId, type Dashboard,
-} from "@/lib/dashboards";
-import { useRequireAuth } from "@/lib/auth";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+
+import landingCss from "../styles/landing.css?url";
+import { getCreds } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Overview - CloudPulse Monitoring" }] }),
-  component: Overview,
+  head: () => ({
+    meta: [
+      { title: "CloudPulse — Monitoring for Your Whole Stack" },
+      {
+        name: "description",
+        content:
+          "Metrics, logs, traces and uptime checks in one self-hosted platform. Watch AWS CloudWatch and your own infrastructure side by side.",
+      },
+      { property: "og:title", content: "CloudPulse — Monitoring for Your Whole Stack" },
+      {
+        property: "og:description",
+        content: "Metrics, logs, traces and uptime checks in one self-hosted platform.",
+      },
+    ],
+    links: [
+      { rel: "stylesheet", href: landingCss },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Sora:wght@100..900&display=block",
+      },
+    ],
+  }),
+  component: Landing,
 });
 
-function Overview() {
-  useRequireAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountUid, setAccountUid] = useState("");
-  const [instances, setInstances] = useState<string[]>([]);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [regionOverride, setRegionOverride] = useState("");
-  const [regions, setRegions] = useState<string[]>(ALL_REGIONS);
-  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [activeId, setActiveId] = useState("default");
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
+/** Feature list under the hero. Desktop layout is pixel-locked, so these want
+ *  to stay around 20 characters or they overflow their 220u slots. */
+const FEATURES = [
+  { id: "f1", label: "Metrics & dashboards" },
+  { id: "f2", label: "Logs & traces" },
+  { id: "f3", label: "Uptime checks" },
+  { id: "f4", label: "Threshold alerts" },
+];
 
+function Landing() {
+  const navigate = useNavigate();
+  const [entered, setEntered] = useState(false);
+
+  // Already signed in? Skip the pitch.
   useEffect(() => {
-    loadDashboards().then(setDashboards);
-    setActiveId(loadActiveId());
-    listAccounts().then((a) => {
-      setAccounts(a);
-      if (a.length) setAccountUid((cur) => cur || a[0].uid);
-    }).catch(() => {});
+    if (getCreds()) navigate({ to: "/overview", replace: true });
+  }, [navigate]);
+
+  // The page is a fixed full-viewport surface; stop the document scrolling
+  // behind it. The template did this with a global html/body rule, which would
+  // have leaked into every other route.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
-  const account = accounts.find((a) => a.uid === accountUid);
-  const defaultRegion = account?.jsonData?.defaultRegion ?? "us-east-1";
-  const region = regionOverride || defaultRegion;
-  const active = dashboards.find((d) => d.id === activeId) ?? dashboards[0];
-
+  // Drops the entrance animations once they've played so they can't replay.
+  // A plain timer rather than an animationend listener, because under
+  // prefers-reduced-motion no animation fires at all.
   useEffect(() => {
-    setRegionOverride("");
-    if (accountUid) listRegions(accountUid).then(setRegions);
-  }, [accountUid]);
-
-  useEffect(() => {
-    if (!accountUid) return;
-    setInstances([]); setSelectedIds([]);
-    listInstances(accountUid, region).then((ids) => {
-      setInstances(ids);
-      if (ids.length) setSelectedIds([ids[0]]);
-    });
-  }, [accountUid, region]);
-
-  const update = (next: Dashboard[]) => { setDashboards(next); saveDashboards(next); };
-  const switchTo = (id: string) => { setActiveId(id); saveActiveId(id); };
-
-  const createDashboard = () => {
-    const name = window.prompt("Dashboard name:", "New dashboard");
-    if (!name?.trim()) return;
-    const d: Dashboard = { id: newId(), name: name.trim(), panels: [] };
-    update([...dashboards, d]);
-    switchTo(d.id);
-  };
-
-  const renameDashboard = () => {
-    if (!active) return;
-    const name = window.prompt("Rename dashboard:", active.name);
-    if (!name?.trim()) return;
-    update(dashboards.map((d) => d.id === active.id ? { ...d, name: name.trim() } : d));
-  };
-
-  const deleteDashboard = () => {
-    if (!active || dashboards.length <= 1) return;
-    if (!window.confirm(`Delete dashboard "${active.name}"?`)) return;
-    const next = dashboards.filter((d) => d.id !== active.id);
-    update(next);
-    switchTo(next[0].id);
-  };
-
-  const savePanel = (p: Panel) => {
-    if (!active) return;
-    update(dashboards.map((d) => {
-      if (d.id !== active.id) return d;
-      const panels = editIndex === null
-        ? [...d.panels, p]
-        : d.panels.map((old, i) => (i === editIndex ? p : old));
-      return { ...d, panels };
-    }));
-    setEditIndex(null);
-  };
-
-  const removePanel = (idx: number) => {
-    if (!active) return;
-    update(dashboards.map((d) =>
-      d.id === active.id ? { ...d, panels: d.panels.filter((_, i) => i !== idx) } : d
-    ));
-  };
-
-  const openAdd = () => { setEditIndex(null); setEditorOpen(true); };
-  const openEdit = (idx: number) => { setEditIndex(idx); setEditorOpen(true); };
-  const closeEditor = () => { setEditorOpen(false); setEditIndex(null); };
+    const t = setTimeout(() => setEntered(true), 2600);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <Select label="Dashboard" value={active?.id ?? ""} onChange={switchTo}
-          options={dashboards.map((d) => ({ value: d.id, label: d.name }))} />
-        <button onClick={createDashboard} className="rounded border border-border bg-card px-2.5 py-1.5 text-xs text-foreground hover:bg-white/5">+ New</button>
-        <button onClick={renameDashboard} className="rounded border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-white/5">Rename</button>
-        {dashboards.length > 1 && (
-          <button onClick={deleteDashboard} className="rounded border border-border bg-card px-2.5 py-1.5 text-xs text-red-400 hover:bg-white/5">Delete</button>
-        )}
-        <span className="mx-1 h-5 w-px bg-border" />
-        <Select label="Account" value={accountUid} onChange={setAccountUid}
-          options={accounts.map((a) => ({ value: a.uid, label: a.name }))} />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          Region
-          <select value={regionOverride} onChange={(e) => setRegionOverride(e.target.value)}
-            className="rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground">
-            <option value="">Default ({defaultRegion})</option>
-            {regions.filter((r) => r !== defaultRegion).map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </label>
-        <InstancePicker instances={instances} selected={selectedIds} onChange={setSelectedIds} />
-        <button onClick={openAdd}
-          className="ml-auto rounded border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:bg-white/5">
-          + Add panel
-        </button>
+    <div className={`landing${entered ? " is-entered" : ""}`}>
+      <div className="bg" aria-hidden="true">
+        <Topology />
       </div>
+      <div className="veil" />
 
-      {editorOpen && accountUid && active && (
-        <AddPanel dsUid={accountUid} region={region}
-          initial={editIndex !== null ? active.panels[editIndex] : null}
-          onAdd={savePanel} onClose={closeEditor} />
-      )}
+      <header className="bar">
+        <Link className="brand" to="/">
+          <svg viewBox="0 0 23 17" aria-hidden="true">
+            <path d="M0.8 8.8 H5.2 L7.6 3.2 L11 14 L13.6 8.8 H22.2" />
+          </svg>
+          <span id="word">CLOUDPULSE</span>
+        </Link>
 
-      {accountUid && active ? (
-        active.panels.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-            {active.panels.map((panel, idx) => (
-              <div key={`${active.id}-${idx}-${panel.title}`} className="relative">
-                <div className="absolute right-3 top-3 z-10 flex gap-3">
-                  <button onClick={() => openEdit(idx)}
-                    className="text-[11px] text-muted-foreground hover:text-[#4f8ff7]">edit</button>
-                  <button onClick={() => removePanel(idx)}
-                    className="text-[11px] text-muted-foreground hover:text-red-400">remove</button>
-                </div>
-                <PanelCard panel={panel} dsUid={accountUid} instanceIds={selectedIds} region={region} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Empty dashboard - click "+ Add panel" to build it.</p>
-        )
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          {accounts.length === 0 ? "No accounts connected - add one in Settings." : "Loading..."}
-        </p>
-      )}
-    </div>
-  );
-}
+        <input className="navtoggle" type="checkbox" id="nav-open" />
+        <label className="scrim" htmlFor="nav-open" aria-hidden="true" />
+        <label className="burger" htmlFor="nav-open" aria-label="Menu">
+          <svg viewBox="0 0 22 14" aria-hidden="true">
+            <path className="b1" d="M1 1 H21" />
+            <path className="b2" d="M1 7 H21" />
+            <path className="b3" d="M1 13 H21" />
+          </svg>
+        </label>
 
-function Select({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-      {label}
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground">
-        {options.length === 0 && <option value="">-</option>}
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function InstancePicker({ instances, selected, onChange }: {
-  instances: string[]; selected: string[]; onChange: (v: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const toggle = (id: string) =>
-    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
-  return (
-    <div className="relative text-xs text-muted-foreground">
-      <button onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground">
-        Instances
-        <span className="rounded bg-background px-1.5 py-0.5 text-[11px]">{selected.length}/{instances.length}</span>
-      </button>
-      {open && (
-        <div className="absolute z-20 mt-1 max-h-64 w-64 overflow-auto rounded border border-border bg-card p-2 shadow-lg">
-          <div className="mb-1 flex gap-2">
-            <button onClick={() => onChange([...instances])} className="text-[11px] hover:underline">All</button>
-            <button onClick={() => onChange([])} className="text-[11px] hover:underline">None</button>
-          </div>
-          {instances.map((id) => (
-            <label key={id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-white/5">
-              <input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} />
-              <span className="text-foreground">{id}</span>
-            </label>
-          ))}
-          {instances.length === 0 && <p className="px-1 py-1">No instances found.</p>}
+        <div className="navpanel">
+          <nav className="menu">
+            {/* TODO: no marketing pages exist yet -- these are placeholders. */}
+            <a href="#">
+              <span id="about">About</span>
+            </a>
+            <a href="#">
+              <span id="product">Product</span>
+            </a>
+            <a href="#">
+              <span id="solutions">Solutions</span>
+              <svg className="caret" viewBox="0 0 9 6" aria-hidden="true">
+                <path d="M0.7 1.1 L4.5 4.6 L8.3 1.1" />
+              </svg>
+            </a>
+          </nav>
+          <Link className="login" to="/login">
+            <span id="login">Log in / Request access</span>
+            <svg className="navarrow" viewBox="0 0 10 9" aria-hidden="true">
+              <path d="M0 4.5 H9.1 M5.4 0.9 L9.2 4.5 L5.4 8.1" />
+            </svg>
+          </Link>
+          <Link className="pill" to="/register">
+            <span id="contact">Get started</span>
+          </Link>
         </div>
-      )}
+      </header>
+
+      <main className="hero">
+        <h1 className="title">
+          <span id="h1a">Know What Your Cloud Is Doing</span>
+          <span id="h1b">Before Your Users Tell You.</span>
+        </h1>
+        <p className="sub">
+          <span id="sub1">Metrics, logs, traces and uptime</span>
+          <span id="sub2">in one self-hosted platform.</span>
+        </p>
+        <Link className="cta" to="/register">
+          <span id="cta">Start monitoring</span>
+          <svg className="arrow" viewBox="0 0 16 11" aria-hidden="true">
+            <path d="M0 5.5 H14.6 M10.3 1.2 L14.9 5.5 L10.3 9.8" />
+          </svg>
+        </Link>
+        <ul className="feats">
+          {FEATURES.map((f) => (
+            <li key={f.id}>
+              <svg className="chev" viewBox="0 0 11 20" aria-hidden="true">
+                <path d="M1.15 1.15 L9.6 10 L1.15 18.85" />
+              </svg>
+              <span id={f.id}>{f.label}</span>
+            </li>
+          ))}
+        </ul>
+        <span className="rule" aria-hidden="true" />
+      </main>
+
+      <footer className="foot">
+        <span id="foot1">Built for teams who own their infrastructure.</span>
+        <span id="foot2">2026</span>
+      </footer>
     </div>
+  );
+}
+
+/** Decorative service-topology backdrop: nodes, links, and traffic pulses. */
+function Topology() {
+  const links = [
+    "M230 210 L560 130 L920 240 L1300 160",
+    "M230 210 L410 560 L760 512 L920 240",
+    "M760 512 L1080 640 L1300 160",
+    "M410 560 L300 860 L680 900 L1080 640",
+    "M680 900 L1080 640 L1300 780",
+  ];
+  const pulses = [
+    { d: links[0], cls: "a" },
+    { d: links[1], cls: "b" },
+    { d: links[3], cls: "c" },
+    { d: links[4], cls: "a" },
+  ];
+  const nodes = [
+    { x: 230, y: 210, r: 7, core: 3.4, dim: false },
+    { x: 560, y: 130, r: 6, core: 3, dim: true },
+    { x: 920, y: 240, r: 7.5, core: 3.6, dim: false },
+    { x: 1300, y: 160, r: 6, core: 3, dim: true },
+    { x: 760, y: 512, r: 8.5, core: 4, dim: false },
+    { x: 410, y: 560, r: 6, core: 3, dim: true },
+    { x: 1080, y: 640, r: 7, core: 3.4, dim: false },
+    { x: 300, y: 860, r: 6, core: 3, dim: true },
+    { x: 680, y: 900, r: 6.5, core: 3.2, dim: false },
+    { x: 1300, y: 780, r: 6, core: 3, dim: true },
+  ];
+
+  return (
+    <svg className="topology" viewBox="0 0 1536 1024" preserveAspectRatio="xMidYMid slice">
+      {[256, 512, 768].map((y) => (
+        <line key={`h${y}`} className="grid-line" x1="0" y1={y} x2="1536" y2={y} />
+      ))}
+      {[384, 768, 1152].map((x) => (
+        <line key={`v${x}`} className="grid-line" x1={x} y1="0" x2={x} y2="1024" />
+      ))}
+      {links.map((d, i) => (
+        <path key={`l${i}`} className="link" d={d} />
+      ))}
+      {pulses.map((p, i) => (
+        <path key={`p${i}`} className={`pulse ${p.cls}`} d={p.d} />
+      ))}
+      {nodes.map((n, i) => (
+        <g key={`n${i}`} className={n.dim ? "node dim" : "node"}>
+          <circle className="node-halo" cx={n.x} cy={n.y} r={n.r} />
+          <circle className="node-core" cx={n.x} cy={n.y} r={n.core} />
+        </g>
+      ))}
+    </svg>
   );
 }

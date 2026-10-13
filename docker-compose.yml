@@ -1,0 +1,291 @@
+# Local CloudPulse stack: everything the EC2 box ran, on your machine.
+#
+#   docker compose up -d      # Grafana + nginx + auth + monitoring
+#   npm run dev               # Vite on :8080, proxying APIs into nginx
+#
+# Then open http://localhost:8080 and register at /register.
+# Defaults are set so this runs with no .env file.
+
+name: cloudpulse
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Headless data engine: nobody signs in to Grafana's own UI.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Zabbix support. Downloaded on first start; the app is enabled and the
+      # datasource created by deploy/grafana/provisioning/.
+      GF_INSTALL_PLUGINS: alexanderzobnin-zabbix-app
+      # Referenced by the provisioned Zabbix datasource.
+      ZABBIX_API_USER: ${ZABBIX_API_USER:-Admin}
+      ZABBIX_API_PASSWORD: ${ZABBIX_API_PASSWORD:-zabbix}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+      - zabbix-web
+    restart: unless-stopped
+
+  # ---- data plane -------------------------------------------------------
+  # Metrics for anything that isn't AWS, plus the scrape loop that drives
+  # uptime checks. Grafana queries all of these; the app never talks to them
+  # directly, so /api/ds/query stays the single query path.
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+      # Lets an in-cluster Prometheus agent push metrics in, which is how you
+      # connect a real cluster that this Prometheus can't reach directly
+      # (EKS, GKE, anything behind a VPC). See deploy/kubernetes/README.md.
+      - --web.enable-remote-write-receiver
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/targets:/etc/prometheus/targets
+      - prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.28.0
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./deploy/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Ships container logs into Loki. Without this Loki runs but stays empty —
+  # something has to actually collect.
+  #
+  # Note the Docker socket mount: it is effectively root on this host. Fine for
+  # a local stack, but on a shared or internet-facing box put Alloy behind a
+  # socket proxy rather than handing it the raw socket.
+  alloy:
+    image: grafana/alloy:v1.5.1
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./deploy/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.7.8
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./deploy/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+
+  # Pinned to 2.x: Tempo 3.0 restructured the config schema (no top-level
+  # ingester/compactor blocks). Revisit deliberately, not via :latest.
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: -config.file=/etc/tempo/tempo.yml
+    ports:
+      # OTLP ingest, exposed so your own services can push traces in.
+      - "${OTLP_GRPC_PORT:-4317}:4317"
+      - "${OTLP_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ./deploy/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  # ---- control plane ----------------------------------------------------
+
+  # CloudPulse's own database: orgs, users, sessions, dashboards, alert rules.
+  # Deliberately its own service rather than sharing an existing Postgres, so
+  # `docker compose down -v` only ever destroys CloudPulse data.
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cloudpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudpulse}
+      POSTGRES_DB: ${POSTGRES_DB:-cloudpulse}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates the separate zabbix database on first init.
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cloudpulse} -d ${POSTGRES_DB:-cloudpulse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ---- Zabbix -----------------------------------------------------------
+  # Agent-based monitoring for everything the cloud APIs can't see: bare
+  # metal, VMs, switches, anything reachable by Zabbix agent / SNMP / IPMI.
+  # Bundled so CloudPulse can monitor infrastructure out of the box rather
+  # than only clouds. Grafana queries it through the Zabbix datasource, so it
+  # joins the same /api/ds/query path as every other source.
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:${ZABBIX_VERSION:-alpine-7.0-latest}
+    environment:
+      DB_SERVER_HOST: postgres
+      POSTGRES_USER: ${ZABBIX_DB_USER:-zabbix}
+      POSTGRES_PASSWORD: ${ZABBIX_DB_PASSWORD:-zabbix}
+      POSTGRES_DB: ${ZABBIX_DB_NAME:-zabbix}
+    ports:
+      # Where agents on your hosts connect back to. Publish it or nothing can
+      # report in.
+      - "${ZABBIX_SERVER_PORT:-10051}:10051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:${ZABBIX_VERSION:-alpine-7.0-latest}
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: postgres
+      POSTGRES_USER: ${ZABBIX_DB_USER:-zabbix}
+      POSTGRES_PASSWORD: ${ZABBIX_DB_PASSWORD:-zabbix}
+      POSTGRES_DB: ${ZABBIX_DB_NAME:-zabbix}
+      PHP_TZ: ${TZ:-UTC}
+    ports:
+      # Zabbix's own UI, for host/template configuration. Also serves the
+      # JSON-RPC API that Grafana queries.
+      - "${ZABBIX_WEB_PORT:-8090}:8080"
+    depends_on:
+      - zabbix-server
+    restart: unless-stopped
+
+  # Monitors the CloudPulse host itself, so there's data the moment it starts.
+  zabbix-agent:
+    image: zabbix/zabbix-agent:${ZABBIX_VERSION:-alpine-7.0-latest}
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_HOSTNAME: Zabbix server
+    depends_on:
+      - zabbix-server
+    restart: unless-stopped
+
+  # One-shot. Zabbix ships a "Zabbix server" host whose agent interface points
+  # at 127.0.0.1 — correct for an all-in-one install, wrong here because the
+  # agent is its own container. Left alone, every check fails with "Connection
+  # refused" and Zabbix collects only its own internal metrics: no CPU, memory
+  # or disk. This repoints the interface and attaches the Linux template.
+  # Idempotent, so it simply exits on an already-configured stack.
+  zabbix-bootstrap:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.services
+    command: node scripts/bootstrap-zabbix.mjs
+    environment:
+      ZABBIX_API_URL: http://zabbix-web:8080/api_jsonrpc.php
+      ZABBIX_API_USER: ${ZABBIX_API_USER:-Admin}
+      ZABBIX_API_PASSWORD: ${ZABBIX_API_PASSWORD:-zabbix}
+      ZABBIX_AGENT_HOST: zabbix-agent
+    depends_on:
+      - zabbix-web
+      - zabbix-agent
+    restart: on-failure:3
+
+  # ---- control plane ----------------------------------------------------
+
+  auth:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.services
+    command: node services/auth/server.mjs
+    environment:
+      HOST: 0.0.0.0
+      CLOUDPULSE_STATE_DIR: /etc/cloudpulse
+      OTEL_SERVICE_NAME: cloudpulse-auth
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      # Unset = open registration, which is what you want for local setup.
+      INVITE_CODE: ${INVITE_CODE:-}
+    volumes:
+      - cloudpulse-state:/etc/cloudpulse
+    restart: unless-stopped
+
+  monitoring:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.services
+    command: node services/monitoring/server.mjs
+    environment:
+      HOST: 0.0.0.0
+      CLOUDPULSE_STATE_DIR: /etc/cloudpulse
+      OTEL_SERVICE_NAME: cloudpulse-monitoring
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
+      GRAFANA_URL: http://grafana:3000
+      # No service-account token locally; fall back to Grafana admin basic auth.
+      GRAFANA_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GRAFANA_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # Alert email. SMTP_HOST covers any provider; GMAIL_* is the shortcut
+      # (needs a Google App Password, not the account password). With neither
+      # set, a rule carrying an email address logs a warning rather than
+      # silently notifying nobody — which is what it used to do.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_PASS: ${GMAIL_PASS:-}
+    volumes:
+      - cloudpulse-state:/etc/cloudpulse
+    depends_on:
+      - grafana
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.nginx
+    ports:
+      - "${CLOUDPULSE_PORT:-8081}:80"
+    environment:
+      FRONTEND_UPSTREAM: host.docker.internal:8080
+      AUTH_UPSTREAM: auth:8082
+      MONITORING_UPSTREAM: monitoring:8083
+      GRAFANA_UPSTREAM: grafana:3000
+      GRAFANA_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GRAFANA_TOKEN: ${GRAFANA_TOKEN:-}
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/cloudpulse.conf.template:ro
+      - cloudpulse-state:/etc/cloudpulse:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - auth
+      - monitoring
+      - grafana
+    restart: unless-stopped
+
+volumes:
+  grafana-data:
+  cloudpulse-state:
+  postgres-data:
+  prometheus-data:
+  loki-data:
+  alloy-data:
+  tempo-data:

@@ -12,10 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as InfrastructureRouteImport } from './routes/infrastructure'
+import { Route as KubernetesRouteImport } from './routes/kubernetes'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LogsRouteImport } from './routes/logs'
+import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ServersRouteImport } from './routes/servers'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TracesRouteImport } from './routes/traces'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -32,9 +37,24 @@ const InfrastructureRoute = InfrastructureRouteImport.update({
   path: '/infrastructure',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KubernetesRoute = KubernetesRouteImport.update({
+  id: '/kubernetes',
+  path: '/kubernetes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LogsRoute = LogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OverviewRoute = OverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProvidersRoute = ProvidersRouteImport.update({
@@ -47,9 +67,19 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServersRoute = ServersRouteImport.update({
+  id: '/servers',
+  path: '/servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TracesRoute = TracesRouteImport.update({
+  id: '/traces',
+  path: '/traces',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -57,29 +87,44 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/infrastructure': typeof InfrastructureRoute
+  '/kubernetes': typeof KubernetesRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
+  '/overview': typeof OverviewRoute
   '/providers': typeof ProvidersRoute
   '/register': typeof RegisterRoute
+  '/servers': typeof ServersRoute
   '/settings': typeof SettingsRoute
+  '/traces': typeof TracesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/infrastructure': typeof InfrastructureRoute
+  '/kubernetes': typeof KubernetesRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
+  '/overview': typeof OverviewRoute
   '/providers': typeof ProvidersRoute
   '/register': typeof RegisterRoute
+  '/servers': typeof ServersRoute
   '/settings': typeof SettingsRoute
+  '/traces': typeof TracesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/infrastructure': typeof InfrastructureRoute
+  '/kubernetes': typeof KubernetesRoute
   '/login': typeof LoginRoute
+  '/logs': typeof LogsRoute
+  '/overview': typeof OverviewRoute
   '/providers': typeof ProvidersRoute
   '/register': typeof RegisterRoute
+  '/servers': typeof ServersRoute
   '/settings': typeof SettingsRoute
+  '/traces': typeof TracesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,38 +132,58 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/infrastructure'
+    | '/kubernetes'
     | '/login'
+    | '/logs'
+    | '/overview'
     | '/providers'
     | '/register'
+    | '/servers'
     | '/settings'
+    | '/traces'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/alerts'
     | '/infrastructure'
+    | '/kubernetes'
     | '/login'
+    | '/logs'
+    | '/overview'
     | '/providers'
     | '/register'
+    | '/servers'
     | '/settings'
+    | '/traces'
   id:
     | '__root__'
     | '/'
     | '/alerts'
     | '/infrastructure'
+    | '/kubernetes'
     | '/login'
+    | '/logs'
+    | '/overview'
     | '/providers'
     | '/register'
+    | '/servers'
     | '/settings'
+    | '/traces'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
   InfrastructureRoute: typeof InfrastructureRoute
+  KubernetesRoute: typeof KubernetesRoute
   LoginRoute: typeof LoginRoute
+  LogsRoute: typeof LogsRoute
+  OverviewRoute: typeof OverviewRoute
   ProvidersRoute: typeof ProvidersRoute
   RegisterRoute: typeof RegisterRoute
+  ServersRoute: typeof ServersRoute
   SettingsRoute: typeof SettingsRoute
+  TracesRoute: typeof TracesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -144,11 +209,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InfrastructureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kubernetes': {
+      id: '/kubernetes'
+      path: '/kubernetes'
+      fullPath: '/kubernetes'
+      preLoaderRoute: typeof KubernetesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/logs': {
+      id: '/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/overview': {
+      id: '/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof OverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/providers': {
@@ -165,11 +251,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/servers': {
+      id: '/servers'
+      path: '/servers'
+      fullPath: '/servers'
+      preLoaderRoute: typeof ServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/traces': {
+      id: '/traces'
+      path: '/traces'
+      fullPath: '/traces'
+      preLoaderRoute: typeof TracesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -179,10 +279,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
   InfrastructureRoute: InfrastructureRoute,
+  KubernetesRoute: KubernetesRoute,
   LoginRoute: LoginRoute,
+  LogsRoute: LogsRoute,
+  OverviewRoute: OverviewRoute,
   ProvidersRoute: ProvidersRoute,
   RegisterRoute: RegisterRoute,
+  ServersRoute: ServersRoute,
   SettingsRoute: SettingsRoute,
+  TracesRoute: TracesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -5,9 +5,9 @@ After=network.target
 [Service]
 User=ubuntu
 Environment=GRAFANA_TOKEN=REPLACE_ME
-Environment=GMAIL_USER=podilapusai123@gmail.com
+Environment=GMAIL_USER=REPLACE_ME
 Environment=GMAIL_PASS=REPLACE_ME
-ExecStart=/usr/bin/node /home/ubuntu/cloudpulse-auth/alerts.mjs
+ExecStart=/usr/bin/node /opt/cloudpulse/services/monitoring/server.mjs
 Restart=always
 
 [Install]

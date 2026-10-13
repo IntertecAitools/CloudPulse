@@ -1,0 +1,10 @@
+FROM nginx:alpine
+
+# The stock image ships a catch-all server on :80 that would shadow ours.
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Sourced by the nginx entrypoint before envsubst runs, so it can export
+# GRAFANA_AUTH_HEADER into the environment the template is rendered against.
+# Baked in (not bind-mounted) because the entrypoint skips non-executable files.
+COPY deploy/nginx-grafana-auth.envsh /docker-entrypoint.d/15-grafana-auth.envsh
+RUN chmod +x /docker-entrypoint.d/15-grafana-auth.envsh

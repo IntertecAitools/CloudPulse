@@ -1,0 +1,18 @@
+#!/bin/sh
+# Builds the Authorization header nginx injects on /grafana/.
+#
+# Production uses a Grafana service-account token; the local stack has no token
+# to bootstrap, so it falls back to the Grafana admin's basic credentials.
+# Either way the browser's own Authorization header is replaced, so end users
+# never hold a Grafana credential.
+
+if [ -z "$GRAFANA_AUTH_HEADER" ]; then
+  if [ -n "$GRAFANA_TOKEN" ]; then
+    export GRAFANA_AUTH_HEADER="Bearer $GRAFANA_TOKEN"
+  else
+    export GRAFANA_AUTH_HEADER="Basic $(
+      printf '%s:%s' "${GRAFANA_ADMIN_USER:-admin}" "${GRAFANA_ADMIN_PASSWORD:-admin}" \
+        | base64 | tr -d '\n'
+    )"
+  fi
+fi

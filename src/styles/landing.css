@@ -1,0 +1,1300 @@
+/* CloudPulse landing page.
+ *
+ * Adapted from a pixel-locked single-screen template. Two layouts: A is an
+ * absolutely-positioned composition scaled off a 1536x1024 reference via --u;
+ * B is a flow layout for tablet and phone.
+ *
+ * Everything is scoped under .landing. The original styled html/body directly
+ * (overflow:hidden, a global * reset, a flex body) which would have broken
+ * every other page in the app -- .landing is a fixed full-viewport container
+ * standing in for body, and absolutely-positioned children of a flex container
+ * are not flex items, so the background layers stay out of flow in layout B.
+ */
+
+.landing {
+  --ink: #ffffff;
+  --sub: #a2a9b8;
+  --nav: #fbfdff;
+  --foot: #f4f8fd;
+  --hair: rgba(196, 214, 232, 0.72);
+  --chev: rgba(214, 232, 250, 0.9);
+  --navdim: #e8ecf0;
+  --feat: #e2ebf5;
+  --veil: 6, 10, 18;
+  --rise: 9px;
+  --cover: max(calc(100vw / 1536), calc(100vh / 1024));
+  --fit: calc(100vh / 910);
+  --u: min(var(--cover), var(--fit));
+  --blur: calc(var(--u) * 26);
+  --glow: calc(var(--u) * 34);
+  --hairline: max(1px, calc(var(--u) * 1.6));
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #02060f;
+  font-family: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+@supports (height: 100dvh) {
+  .landing {
+    --cover: max(calc(100vw / 1536), calc(100dvh / 1024));
+    --fit: calc(100dvh / 910);
+  }
+}
+
+.landing *,
+.landing *::before,
+.landing *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+.landing a {
+  color: inherit;
+  text-decoration: none;
+}
+.landing li {
+  list-style: none;
+}
+.landing button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+}
+.landing svg {
+  display: block;
+}
+.landing a:focus-visible {
+  outline: 2px solid #9fe0ff;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ===== background layers — monitoring topology ===== */
+.landing .bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  background: radial-gradient(120% 90% at 50% 20%, #0a1622 0%, #03070d 55%, #02050a 100%);
+}
+.landing .bg::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background-image: radial-gradient(rgba(158, 214, 255, 0.09) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+.landing .topology {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.landing .topology .grid-line {
+  stroke: rgba(120, 168, 210, 0.14);
+  stroke-width: 1;
+}
+.landing .topology .link {
+  fill: none;
+  stroke: rgba(120, 190, 220, 0.3);
+  stroke-width: 1.1;
+}
+.landing .topology .pulse {
+  fill: none;
+  stroke: #7ee6c2;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 2 220;
+  filter: drop-shadow(0 0 3px rgba(126, 230, 194, 0.9));
+  animation: lp-flow 5.4s linear infinite;
+}
+.landing .topology .pulse.b {
+  stroke: #7fc7ff;
+  animation-duration: 6.6s;
+  animation-delay: -2.1s;
+  filter: drop-shadow(0 0 3px rgba(127, 199, 255, 0.9));
+}
+.landing .topology .pulse.c {
+  stroke: #ffd27f;
+  animation-duration: 7.8s;
+  animation-delay: -4.4s;
+  filter: drop-shadow(0 0 3px rgba(255, 210, 127, 0.85));
+}
+.landing .topology .node-halo {
+  fill: rgba(126, 230, 194, 0.14);
+  animation: lp-pulse-ring 3.2s ease-out infinite;
+}
+.landing .topology .node-core {
+  fill: #eafff5;
+  filter: drop-shadow(0 0 4px rgba(126, 230, 194, 0.85));
+}
+.landing .topology .node.dim .node-halo {
+  fill: rgba(127, 199, 255, 0.13);
+}
+.landing .topology .node.dim .node-core {
+  fill: #eaf6ff;
+  filter: drop-shadow(0 0 4px rgba(127, 199, 255, 0.8));
+}
+@keyframes lp-flow {
+  to {
+    stroke-dashoffset: -1600;
+  }
+}
+@keyframes lp-pulse-ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.landing .veil {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      140% 60% at 50% 42%,
+      rgba(var(--veil), 0.42) 0%,
+      rgba(var(--veil), 0.18) 50%,
+      rgba(var(--veil), 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(var(--veil), 0.12) 0%,
+      rgba(var(--veil), 0) 30%,
+      rgba(var(--veil), 0) 65%,
+      rgba(var(--veil), 0.3) 100%
+    );
+}
+.landing .bar,
+.landing .hero,
+.landing .foot {
+  position: absolute;
+  z-index: 1;
+}
+/* Header sits above the hero, which is a full-viewport box in layout A. */
+.landing .bar {
+  z-index: 5;
+}
+
+/* Clickability. The desktop composition stacks several full-bleed boxes
+   (.hero, and .title/.sub/.feats at inset:0) over the whole page, so the
+   last one in DOM order swallows every click. None of them are interactive,
+   so they opt out and the real controls opt back in. The template shipped
+   with every link as href="#", which is why this never showed up there. */
+.landing .hero,
+.landing .title,
+.landing .sub,
+.landing .feats {
+  pointer-events: none;
+}
+.landing .cta,
+.landing .bar a,
+.landing .bar label {
+  pointer-events: auto;
+}
+
+/* ===== component skin ===== */
+/* Stroked, not filled: the CloudPulse mark is a pulse waveform. */
+.landing .brand svg {
+  display: block;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.landing .caret,
+.landing .navarrow {
+  fill: none;
+  stroke: var(--nav);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.landing .navarrow {
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.landing .pill {
+  border: var(--hairline) solid var(--hair);
+  border-radius: 999px;
+}
+.landing .chev {
+  fill: none;
+  stroke: var(--chev);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.landing .cta .arrow {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.landing .rule {
+  background: linear-gradient(
+    180deg,
+    rgba(186, 200, 214, 0.7) 0%,
+    rgba(206, 220, 232, 0.92) 52%,
+    rgba(182, 198, 212, 0.68) 100%
+  );
+}
+.landing .cta {
+  position: relative;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(6, 12, 22, 0) 45%, rgba(6, 12, 22, 0.12) 78%, rgba(6, 12, 22, 0.28) 100%),
+    linear-gradient(
+      90deg,
+      rgba(255, 226, 178, 0.17) 0%,
+      rgba(255, 236, 208, 0.07) 22%,
+      rgba(176, 206, 238, 0.03) 55%,
+      rgba(150, 196, 244, 0.09) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.24) 0%,
+      rgba(255, 255, 255, 0.17) 12%,
+      rgba(255, 255, 255, 0.11) 26%,
+      rgba(255, 255, 255, 0.07) 42%,
+      rgba(255, 255, 255, 0.05) 60%,
+      rgba(255, 255, 255, 0.04) 80%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(0.45);
+  backdrop-filter: blur(var(--blur)) saturate(0.45);
+  box-shadow:
+    0 calc(var(--u) * -2) calc(var(--u) * 20) rgba(255, 224, 176, 0.2),
+    0 0 var(--glow) rgba(168, 204, 252, 0.16),
+    inset 0 var(--hairline) 0 0 rgba(255, 251, 242, 0.45);
+}
+.landing .cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--hairline);
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 252, 246, 0.95) 0%,
+      rgba(255, 252, 246, 0.2) 45%,
+      rgba(255, 252, 246, 0) 78%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 228, 182, 0.95) 0%,
+      rgba(250, 236, 210, 0.7) 12%,
+      rgba(226, 230, 234, 0.03) 32%,
+      rgba(214, 226, 240, 0.02) 62%,
+      rgba(200, 228, 250, 0.7) 90%,
+      rgba(186, 224, 247, 0.95) 100%
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.landing #word {
+  font-variation-settings: "wght" 531;
+  color: var(--ink);
+}
+.landing #about,
+.landing #product,
+.landing #solutions,
+.landing #login {
+  font-variation-settings: "wght" 506;
+  color: var(--nav);
+}
+.landing #contact {
+  font-variation-settings: "wght" 581;
+  color: var(--navdim);
+}
+.landing #h1a,
+.landing #h1b {
+  font-variation-settings: "wght" 424;
+  color: var(--ink);
+}
+.landing #sub1,
+.landing #sub2 {
+  font-variation-settings: "wght" 446;
+  color: var(--sub);
+}
+.landing #cta {
+  font-variation-settings: "wght" 497;
+  color: var(--ink);
+}
+.landing #f1,
+.landing #f2,
+.landing #f3,
+.landing #f4 {
+  font-variation-settings: "wght" 534;
+  color: var(--feat);
+}
+.landing #foot1,
+.landing #foot2 {
+  font-variation-settings: "wght" 521;
+  color: var(--foot);
+}
+
+/* ===== entrance sequence ===== */
+@media (prefers-reduced-motion: no-preference) {
+  .landing {
+    --ent-line: cubic-bezier(0.16, 1, 0.3, 1);
+    --ent-soft: cubic-bezier(0.25, 0.8, 0.35, 1);
+  }
+  @keyframes lp-en-wipe {
+    from {
+      clip-path: inset(-0.78em 0 calc(100% + 0.78em) 0);
+      translate: 0 var(--rise);
+    }
+    to {
+      clip-path: inset(-0.78em 0 -0.78em 0);
+      translate: 0 0;
+    }
+  }
+  @keyframes lp-en-lift {
+    from {
+      opacity: 0;
+      translate: 0 var(--rise);
+    }
+  }
+  @keyframes lp-en-settle {
+    from {
+      opacity: 0;
+      translate: 0 calc(var(--rise) * 0.7);
+      scale: 0.99;
+    }
+  }
+  @keyframes lp-en-draw {
+    from {
+      scale: 1 0;
+    }
+  }
+
+  .landing:not(.is-entered) .brand {
+    animation: lp-en-lift 0.6s var(--ent-soft) 0.12s both;
+  }
+  .landing:not(.is-entered) #about {
+    animation: lp-en-lift 0.55s var(--ent-soft) 0.2s both;
+  }
+  .landing:not(.is-entered) #product {
+    animation: lp-en-lift 0.55s var(--ent-soft) 0.25s both;
+  }
+  .landing:not(.is-entered) #solutions,
+  .landing:not(.is-entered) .caret {
+    animation: lp-en-lift 0.55s var(--ent-soft) 0.3s both;
+  }
+  .landing:not(.is-entered) #login,
+  .landing:not(.is-entered) .navarrow {
+    animation: lp-en-lift 0.55s var(--ent-soft) 0.35s both;
+  }
+  .landing:not(.is-entered) .pill {
+    animation: lp-en-settle 0.6s var(--ent-soft) 0.4s both;
+  }
+  .landing:not(.is-entered) .burger {
+    animation: lp-en-lift 0.6s var(--ent-soft) 0.4s both;
+  }
+  .landing:not(.is-entered) #h1a {
+    animation: lp-en-wipe 0.95s var(--ent-line) 0.34s both;
+  }
+  .landing:not(.is-entered) #h1b {
+    animation: lp-en-wipe 0.95s var(--ent-line) 0.44s both;
+  }
+  .landing:not(.is-entered) #sub1 {
+    animation: lp-en-lift 0.7s var(--ent-soft) 0.74s both;
+  }
+  .landing:not(.is-entered) #sub2 {
+    animation: lp-en-lift 0.7s var(--ent-soft) 0.8s both;
+  }
+  .landing:not(.is-entered) .cta {
+    animation: lp-en-lift 0.8s var(--ent-line) 0.94s both;
+  }
+  .landing:not(.is-entered) .feats li:nth-child(1) {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.08s both;
+  }
+  .landing:not(.is-entered) .feats li:nth-child(2) {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.15s both;
+  }
+  .landing:not(.is-entered) .feats li:nth-child(3) {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.22s both;
+  }
+  .landing:not(.is-entered) .feats li:nth-child(4) {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.29s both;
+  }
+  .landing:not(.is-entered) .rule {
+    animation: lp-en-draw 0.55s var(--ent-line) 1.34s both;
+    transform-origin: top;
+  }
+  .landing:not(.is-entered) #foot1 {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.42s both;
+  }
+  .landing:not(.is-entered) #foot2 {
+    animation: lp-en-lift 0.6s var(--ent-soft) 1.48s both;
+  }
+}
+
+/* =======================================================================
+   ARCHITECTURE A — LOCKED COMPOSITION (desktop)
+   ======================================================================= */
+@media (min-width: 1200px) and (min-height: 560px) and (min-aspect-ratio: 100/95) {
+  .landing .bar,
+  .landing .hero,
+  .landing .foot {
+    left: 50%;
+    width: calc(var(--u) * 1536);
+    transform: translateX(-50%);
+  }
+  .landing .bar {
+    top: 0;
+    height: calc(var(--u) * 120);
+  }
+  .landing .foot {
+    bottom: 0;
+    height: calc(var(--u) * 140);
+  }
+  .landing .hero {
+    top: 50%;
+    height: calc(var(--u) * 1024);
+    transform: translate(-50%, -50%);
+  }
+  .landing .navtoggle,
+  .landing .burger,
+  .landing .scrim {
+    display: none;
+  }
+  .landing .navpanel {
+    display: contents;
+  }
+  .landing .bar > *,
+  .landing .foot > *,
+  .landing .hero > *,
+  .landing .pill,
+  .landing .caret,
+  .landing .navarrow {
+    position: absolute;
+  }
+  .landing .menu,
+  .landing .menu a,
+  .landing .login {
+    position: static;
+  }
+  .landing .title,
+  .landing .sub,
+  .landing .feats {
+    inset: 0;
+    font-weight: inherit;
+  }
+  .landing .bar span,
+  .landing .foot span,
+  .landing .title span,
+  .landing .sub span,
+  .landing .feats span,
+  .landing .cta span {
+    position: absolute;
+    line-height: 0;
+    white-space: nowrap;
+  }
+
+  /* line-height:0 collapses these spans to zero height, so their glyphs
+     overflow a box that can't be hit-tested. Each link gets a transparent
+     hit area sized off its own font-size. */
+  .landing .brand #word::after,
+  .landing .menu a span::after,
+  .landing .login #login::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -0.85em;
+    bottom: -0.85em;
+  }
+
+  .landing .brand {
+    left: calc(var(--u) * 221);
+    top: calc(var(--u) * 55);
+    display: flex;
+    align-items: center;
+    gap: calc(var(--u) * 7);
+  }
+  .landing .brand svg {
+    width: calc(var(--u) * 23);
+    height: calc(var(--u) * 17);
+  }
+  /* Tracking pulled in from the template's 4.8u: "CLOUDPULSE" is four
+     characters longer than the original wordmark and would otherwise run
+     into the nav, which starts at 477u. */
+  .landing #word {
+    position: relative;
+    font-size: calc(var(--u) * 23.4);
+    letter-spacing: calc(var(--u) * 3.2);
+    transform: translate(0, 0);
+  }
+
+  .landing #about {
+    left: calc(var(--u) * 477);
+    top: calc(var(--u) * 65.66);
+    font-size: calc(var(--u) * 13.5);
+    letter-spacing: calc(var(--u) * -0.5);
+  }
+  .landing #product {
+    left: calc(var(--u) * 568.5);
+    top: calc(var(--u) * 65.66);
+    font-size: calc(var(--u) * 13.5);
+    letter-spacing: calc(var(--u) * -0.167);
+  }
+  .landing #solutions {
+    left: calc(var(--u) * 675);
+    top: calc(var(--u) * 65.66);
+    font-size: calc(var(--u) * 13.5);
+    letter-spacing: calc(var(--u) * -0.5);
+  }
+  .landing .caret {
+    left: calc(var(--u) * 744);
+    top: calc(var(--u) * 62.4);
+    width: calc(var(--u) * 9);
+    height: calc(var(--u) * 6);
+    stroke-width: 1.25;
+  }
+  .landing #login {
+    left: calc(var(--u) * 1002.5);
+    top: calc(var(--u) * 66.16);
+    font-size: calc(var(--u) * 13.5);
+    letter-spacing: calc(var(--u) * -0.227);
+  }
+  .landing .navarrow {
+    left: calc(var(--u) * 1163);
+    top: calc(var(--u) * 61.6);
+    width: calc(var(--u) * 10);
+    height: calc(var(--u) * 9);
+    stroke-width: 1.2;
+  }
+  .landing .pill {
+    left: calc(var(--u) * 1191.5);
+    top: calc(var(--u) * 43.5);
+    width: calc(var(--u) * 144);
+    height: calc(var(--u) * 44);
+  }
+  .landing #contact {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 21.66);
+    font-size: calc(var(--u) * 13.5);
+    letter-spacing: calc(var(--u) * 0.25);
+    transform: translateX(calc(var(--u) * -0.5));
+  }
+
+  .landing #h1a {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 285.222);
+    font-size: calc(var(--u) * 46.8);
+    letter-spacing: calc(var(--u) * 0.532);
+    transform: translateX(calc(var(--u) * -1));
+  }
+  .landing #h1b {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 335.222);
+    font-size: calc(var(--u) * 46.8);
+    letter-spacing: calc(var(--u) * -0.398);
+    transform: translateX(calc(var(--u) * -3));
+  }
+  .landing #sub1 {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 408.115);
+    font-size: calc(var(--u) * 20.6);
+    letter-spacing: calc(var(--u) * 0.367);
+    transform: translateX(calc(var(--u) * -0.5));
+  }
+  .landing #sub2 {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 432.153);
+    font-size: calc(var(--u) * 19.1);
+    letter-spacing: calc(var(--u) * -0.632);
+    transform: translateX(calc(var(--u) * -2));
+  }
+
+  .landing .cta {
+    left: calc(var(--u) * 625.8);
+    top: calc(var(--u) * 555.2);
+    width: calc(var(--u) * 279.6);
+    height: calc(var(--u) * 46.6);
+  }
+  .landing .cta .arrow {
+    position: absolute;
+    left: calc(var(--u) * 230.8);
+    top: calc(var(--u) * 17.8);
+    width: calc(var(--u) * 16);
+    height: calc(var(--u) * 11);
+  }
+  .landing #cta {
+    left: 0;
+    right: 0;
+    text-align: center;
+    top: calc(var(--u) * 23.113);
+    font-size: calc(var(--u) * 22);
+    letter-spacing: calc(var(--u) * -0.312);
+    transform: translateX(calc(var(--u) * -14.5));
+  }
+
+  .landing .feats li {
+    position: absolute;
+    width: calc(var(--u) * 220);
+    height: calc(var(--u) * 20);
+  }
+  .landing .feats .chev {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--u) * 11);
+    height: calc(var(--u) * 20);
+  }
+  .landing .feats li:nth-child(1) {
+    left: calc(var(--u) * 360);
+    top: calc(var(--u) * 718);
+  }
+  .landing .feats li:nth-child(2) {
+    left: calc(var(--u) * 590);
+    top: calc(var(--u) * 719);
+  }
+  .landing .feats li:nth-child(3) {
+    left: calc(var(--u) * 803);
+    top: calc(var(--u) * 721);
+  }
+  .landing .feats li:nth-child(4) {
+    left: calc(var(--u) * 1013);
+    top: calc(var(--u) * 722);
+  }
+  .landing #f1,
+  .landing #f2,
+  .landing #f3 {
+    left: calc(var(--u) * 26);
+    top: calc(var(--u) * 11.266);
+    font-size: calc(var(--u) * 14.6);
+  }
+  .landing #f1 {
+    letter-spacing: calc(var(--u) * -0.75);
+  }
+  .landing #f2 {
+    letter-spacing: calc(var(--u) * -0.889);
+  }
+  .landing #f3 {
+    letter-spacing: calc(var(--u) * -1.067);
+  }
+  .landing #f4 {
+    left: calc(var(--u) * 29);
+    top: calc(var(--u) * 11.266);
+    font-size: calc(var(--u) * 14.6);
+    letter-spacing: calc(var(--u) * -1.067);
+  }
+
+  .landing .rule {
+    left: calc(var(--u) * 767);
+    top: calc(var(--u) * 792);
+    width: calc(var(--u) * 1);
+    height: calc(var(--u) * 57);
+  }
+
+  .landing #foot1 {
+    left: 0;
+    right: 0;
+    text-align: center;
+    bottom: calc(var(--u) * 101.344);
+    font-size: calc(var(--u) * 16.3);
+    letter-spacing: calc(var(--u) * -0.256);
+    transform: translateX(calc(var(--u) * -0.5));
+  }
+  .landing #foot2 {
+    left: 0;
+    right: 0;
+    text-align: center;
+    bottom: calc(var(--u) * 76.344);
+    font-size: calc(var(--u) * 16.3);
+    letter-spacing: calc(var(--u) * -0.667);
+    transform: translateX(calc(var(--u) * -2));
+  }
+}
+
+/* =======================================================================
+   ARCHITECTURE B — FLOW (large tablet down to phone)
+   ======================================================================= */
+@media (max-width: 1199px), (max-height: 559px), (max-aspect-ratio: 100/95) {
+  .landing {
+    --c: min(calc(100vw / 430), calc(100vh / 860));
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: calc(env(safe-area-inset-top) + calc(var(--c) * 24)) calc(var(--c) * 22)
+      calc(env(safe-area-inset-bottom) + calc(var(--c) * 22));
+  }
+  .landing .bar,
+  .landing .hero,
+  .landing .foot {
+    position: static;
+    width: 100%;
+  }
+  .landing .bar {
+    order: 1;
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--c) * 16);
+  }
+  .landing .brand {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--c) * 8);
+  }
+  .landing .brand svg {
+    width: calc(var(--c) * 22);
+    height: auto;
+  }
+  .landing #word {
+    font-size: calc(var(--c) * 19);
+    letter-spacing: 0.06em;
+  }
+
+  .landing .navtoggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+  .landing .burger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(var(--c) * 42);
+    height: calc(var(--c) * 30);
+    border-radius: 999px;
+    cursor: pointer;
+    border: var(--hairline) solid var(--hair);
+    background: rgba(255, 255, 255, 0.03);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(0.45);
+    backdrop-filter: blur(var(--blur)) saturate(0.45);
+  }
+  .landing .burger svg {
+    width: calc(var(--c) * 19);
+    height: auto;
+    fill: none;
+    stroke: var(--nav);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+  .landing .burger svg path {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+      transform 0.24s ease,
+      opacity 0.18s ease;
+  }
+  .landing .navtoggle:focus-visible ~ .burger {
+    outline: 2px solid #9fe0ff;
+    outline-offset: 3px;
+  }
+  .landing .navtoggle:checked ~ .burger .b1 {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .landing .navtoggle:checked ~ .burger .b2 {
+    opacity: 0;
+  }
+  .landing .navtoggle:checked ~ .burger .b3 {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+  .landing .scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+  .landing .navtoggle:checked ~ .scrim {
+    display: block;
+  }
+
+  .landing .navpanel {
+    position: absolute;
+    top: calc(100% + calc(var(--c) * 12));
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--c) * 2);
+    width: min(calc(var(--c) * 268), 78vw);
+    padding: calc(var(--c) * 12);
+    border-radius: calc(var(--c) * 20);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.045) 100%),
+      linear-gradient(90deg, rgba(255, 226, 178, 0.06) 0%, rgba(150, 196, 244, 0.06) 100%),
+      linear-gradient(180deg, rgba(6, 12, 22, 0.6) 0%, rgba(6, 12, 22, 0.7) 100%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(0.45);
+    backdrop-filter: blur(var(--blur)) saturate(0.45);
+    box-shadow: 0 calc(var(--c) * 14) calc(var(--c) * 38) rgba(2, 6, 14, 0.45);
+    opacity: 0;
+    transform: translateY(calc(var(--c) * -8)) scale(0.985);
+    transform-origin: 100% 0;
+    pointer-events: none;
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
+  }
+  .landing .navtoggle:checked ~ .navpanel {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+  .landing .navpanel .menu {
+    display: flex;
+    flex-direction: column;
+  }
+  .landing .navpanel .menu a,
+  .landing .navpanel .login {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--c) * 8);
+    padding: calc(var(--c) * 10) calc(var(--c) * 12);
+    border-radius: calc(var(--c) * 12);
+    font-size: calc(var(--c) * 16);
+    color: var(--nav);
+    transition: background 0.15s ease;
+  }
+  .landing .navpanel .menu a:hover,
+  .landing .navpanel .login:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .landing .navpanel .caret,
+  .landing .navpanel .navarrow {
+    margin-left: auto;
+    height: auto;
+  }
+  .landing .navpanel .caret {
+    width: calc(var(--c) * 10);
+  }
+  .landing .navpanel .navarrow {
+    width: calc(var(--c) * 11);
+  }
+  .landing .navpanel .pill {
+    margin-top: calc(var(--c) * 8);
+    text-align: center;
+    white-space: nowrap;
+    padding: calc(var(--c) * 11) calc(var(--c) * 16);
+    font-size: calc(var(--c) * 15);
+  }
+
+  .landing .hero {
+    order: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: calc(var(--c) * 20);
+  }
+  .landing .title {
+    font-size: calc(var(--c) * 33);
+    line-height: 1.12;
+    max-width: 15ch;
+  }
+  .landing .sub {
+    color: var(--sub);
+    font-size: calc(var(--c) * 17);
+    line-height: 1.32;
+    max-width: 26ch;
+  }
+  .landing .cta {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--c) * 12);
+    padding: calc(var(--c) * 16) calc(var(--c) * 26);
+    font-size: calc(var(--c) * 18);
+  }
+  .landing .cta .arrow {
+    width: calc(var(--c) * 16);
+    height: calc(var(--c) * 11);
+  }
+  .landing .feats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(var(--c) * 15) calc(var(--c) * 13);
+    width: 100%;
+    max-width: calc(var(--c) * 400);
+    margin-top: calc(var(--c) * 6);
+  }
+  .landing .feats li {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--c) * 9);
+    font-size: calc(var(--c) * 14);
+  }
+  .landing .feats .chev {
+    width: calc(var(--c) * 9);
+    height: calc(var(--c) * 16);
+    flex: none;
+  }
+  .landing .rule {
+    width: 1px;
+    height: calc(var(--c) * 33);
+    margin: calc(var(--c) * 19) auto 0;
+  }
+  .landing .foot {
+    order: 3;
+    text-align: center;
+    color: var(--foot);
+    font-size: calc(var(--c) * 13);
+    line-height: 1.55;
+  }
+  .landing .foot span {
+    display: block;
+  }
+
+  /* B1. phone canvas */
+  @media (max-width: 599px), (max-height: 429px) {
+    .landing {
+      --c: min(calc(100vw / 360), calc(100vh / 770), 1px);
+      --rise: 6px;
+      padding: calc(env(safe-area-inset-top) + calc(var(--c) * 28)) calc(var(--c) * 26)
+        calc(env(safe-area-inset-bottom) + calc(var(--c) * 26));
+    }
+    .landing .brand svg {
+      width: calc(var(--c) * 24);
+    }
+    .landing #word {
+      font-size: calc(var(--c) * 19);
+    }
+    .landing .burger {
+      width: calc(var(--c) * 46);
+      height: calc(var(--c) * 33);
+      position: relative;
+    }
+    .landing .burger::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: max(44px, 100%);
+      height: max(44px, 100%);
+    }
+    .landing .burger svg {
+      width: calc(var(--c) * 21);
+    }
+    .landing .navpanel {
+      width: min(calc(var(--c) * 300), 82vw);
+      padding: calc(var(--c) * 15);
+      border-radius: calc(var(--c) * 22);
+    }
+    .landing .navpanel .menu a,
+    .landing .navpanel .login {
+      font-size: calc(var(--c) * 16);
+      padding: calc(var(--c) * 13) calc(var(--c) * 14);
+      border-radius: calc(var(--c) * 13);
+      min-height: max(44px, calc(var(--c) * 44));
+    }
+    .landing .navpanel .pill {
+      font-size: calc(var(--c) * 16);
+      padding: calc(var(--c) * 13) calc(var(--c) * 18);
+      margin-top: calc(var(--c) * 9);
+    }
+
+    .landing .veil {
+      background:
+        radial-gradient(
+          130% 44% at 50% 45%,
+          rgba(var(--veil), 0.5) 0%,
+          rgba(var(--veil), 0.26) 55%,
+          rgba(var(--veil), 0) 100%
+        ),
+        linear-gradient(
+          180deg,
+          rgba(var(--veil), 0.34) 0%,
+          rgba(var(--veil), 0) 20%,
+          rgba(var(--veil), 0) 60%,
+          rgba(var(--veil), 0.36) 100%
+        );
+    }
+
+    .landing .hero {
+      gap: calc(var(--c) * 22);
+    }
+    .landing .title {
+      font-size: calc(var(--c) * 32);
+      line-height: 1.2;
+      letter-spacing: -0.002em;
+      max-width: none;
+      text-wrap: balance;
+    }
+    .landing .title span {
+      display: block;
+    }
+    .landing .sub {
+      font-size: calc(var(--c) * 16);
+      line-height: 1.45;
+      max-width: none;
+      text-wrap: balance;
+    }
+    .landing .sub span {
+      display: block;
+    }
+    .landing .cta {
+      font-size: calc(var(--c) * 16.5);
+      padding: calc(var(--c) * 15) calc(var(--c) * 28);
+      gap: calc(var(--c) * 12);
+    }
+    .landing .cta .arrow {
+      width: calc(var(--c) * 17);
+      height: calc(var(--c) * 12);
+    }
+    .landing .feats {
+      grid-template-columns: repeat(2, max-content);
+      justify-content: center;
+      width: auto;
+      max-width: none;
+      gap: calc(var(--c) * 16) calc(var(--c) * 16);
+      margin-top: calc(var(--c) * 22);
+    }
+    .landing .feats li {
+      font-size: calc(var(--c) * 13);
+      gap: calc(var(--c) * 10);
+    }
+    .landing .feats .chev {
+      width: calc(var(--c) * 10);
+      height: calc(var(--c) * 18);
+    }
+    .landing .rule {
+      height: calc(var(--c) * 30);
+      margin: calc(var(--c) * 28) auto 0;
+    }
+    .landing .foot {
+      font-size: calc(var(--c) * 13.5);
+      line-height: 1.65;
+      text-wrap: balance;
+    }
+  }
+
+  /* landscape phones */
+  @media (max-height: 429px) and (min-aspect-ratio: 1/1) {
+    .landing {
+      --c: min(calc(100vw / 760), calc(100vh / 430));
+    }
+    .landing .hero {
+      gap: calc(var(--c) * 12);
+    }
+    .landing .title {
+      font-size: calc(var(--c) * 31);
+      line-height: 1.2;
+      max-width: 26ch;
+    }
+    .landing .sub {
+      font-size: calc(var(--c) * 16);
+      max-width: 44ch;
+    }
+    .landing .sub span {
+      display: inline;
+    }
+    .landing .cta {
+      font-size: calc(var(--c) * 15.5);
+      padding: calc(var(--c) * 12) calc(var(--c) * 24);
+    }
+    .landing .feats {
+      grid-template-columns: repeat(4, max-content);
+      justify-content: center;
+      max-width: none;
+      gap: calc(var(--c) * 24);
+      margin-top: calc(var(--c) * 2);
+    }
+    .landing .feats li {
+      font-size: calc(var(--c) * 13.5);
+    }
+    .landing .rule {
+      height: calc(var(--c) * 20);
+      margin: calc(var(--c) * 10) auto 0;
+    }
+    .landing .foot {
+      font-size: calc(var(--c) * 13);
+    }
+  }
+
+  /* B2. tablet canvas */
+  @media (min-width: 600px) and (min-height: 430px) {
+    .landing {
+      --c: min(calc(100vw / 860), calc(100vh / 1120));
+      padding: calc(env(safe-area-inset-top) + calc(var(--c) * 40)) calc(var(--c) * 44)
+        calc(env(safe-area-inset-bottom) + calc(var(--c) * 36));
+    }
+    .landing .brand svg {
+      width: calc(var(--c) * 34);
+    }
+    .landing #word {
+      font-size: calc(var(--c) * 30);
+    }
+    .landing .burger {
+      width: calc(var(--c) * 60);
+      height: calc(var(--c) * 44);
+    }
+    .landing .burger svg {
+      width: calc(var(--c) * 27);
+      stroke-width: 1.2;
+    }
+    .landing .navpanel {
+      width: min(calc(var(--c) * 330), 56vw);
+      padding: calc(var(--c) * 16);
+      border-radius: calc(var(--c) * 26);
+      gap: calc(var(--c) * 4);
+    }
+    .landing .navpanel .menu a,
+    .landing .navpanel .login {
+      font-size: calc(var(--c) * 20);
+      padding: calc(var(--c) * 13) calc(var(--c) * 15);
+      border-radius: calc(var(--c) * 15);
+      gap: calc(var(--c) * 10);
+    }
+    .landing .navpanel .caret {
+      width: calc(var(--c) * 13);
+    }
+    .landing .navpanel .navarrow {
+      width: calc(var(--c) * 14);
+    }
+    .landing .navpanel .pill {
+      margin-top: calc(var(--c) * 10);
+      padding: calc(var(--c) * 14) calc(var(--c) * 20);
+      font-size: calc(var(--c) * 19);
+    }
+    .landing .hero {
+      gap: calc(var(--c) * 26);
+    }
+    .landing .title {
+      font-size: calc(var(--c) * 46);
+      line-height: 1.15;
+      max-width: none;
+    }
+    .landing .title span {
+      display: block;
+    }
+    .landing .sub {
+      font-size: calc(var(--c) * 21);
+      line-height: 1.34;
+      max-width: none;
+    }
+    .landing .sub span {
+      display: block;
+    }
+    .landing .cta {
+      gap: calc(var(--c) * 14);
+      padding: calc(var(--c) * 18) calc(var(--c) * 34);
+      font-size: calc(var(--c) * 21);
+    }
+    .landing .cta .arrow {
+      width: calc(var(--c) * 20);
+      height: calc(var(--c) * 14);
+    }
+    .landing .feats {
+      grid-template-columns: repeat(2, max-content);
+      justify-content: center;
+      gap: calc(var(--c) * 22) calc(var(--c) * 54);
+      max-width: none;
+      margin-top: calc(var(--c) * 12);
+    }
+    .landing .feats li {
+      gap: calc(var(--c) * 12);
+      font-size: calc(var(--c) * 16);
+    }
+    .landing .feats .chev {
+      width: calc(var(--c) * 12);
+      height: calc(var(--c) * 21);
+    }
+    .landing .rule {
+      height: calc(var(--c) * 46);
+      margin: calc(var(--c) * 30) auto 0;
+    }
+    .landing .foot {
+      font-size: calc(var(--c) * 16);
+    }
+
+    @media (min-aspect-ratio: 1/1) {
+      .landing {
+        --c: min(calc(100vw / 1040), calc(100vh / 780));
+      }
+      .landing .feats {
+        grid-template-columns: repeat(4, max-content);
+        gap: calc(var(--c) * 40);
+      }
+    }
+  }
+}
+
+/* dynamic viewport override */
+@supports (height: 100dvh) {
+  @media (max-width: 1199px), (max-height: 559px), (max-aspect-ratio: 100/95) {
+    .landing {
+      --c: min(calc(100vw / 430), calc(100dvh / 860));
+      height: 100dvh;
+    }
+    @media (max-width: 599px), (max-height: 429px) {
+      .landing {
+        --c: min(calc(100vw / 360), calc(100dvh / 770), 1px);
+      }
+    }
+    @media (max-height: 429px) and (min-aspect-ratio: 1/1) {
+      .landing {
+        --c: min(calc(100vw / 760), calc(100dvh / 430));
+      }
+    }
+    @media (min-width: 600px) and (min-height: 430px) {
+      .landing {
+        --c: min(calc(100vw / 860), calc(100dvh / 1120));
+      }
+      @media (min-aspect-ratio: 1/1) {
+        .landing {
+          --c: min(calc(100vw / 1040), calc(100dvh / 780));
+        }
+      }
+    }
+  }
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

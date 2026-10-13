@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -103,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Sora:wght@100..900&display=swap",
       },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
     ],
@@ -128,16 +129,22 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/* Routes that own the full viewport and must not get the sidebar/top bar:
+   the marketing landing page and the pre-auth screens. */
+const CHROMELESS = ["/", "/login", "/register", "/providers"];
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const chromeless = CHROMELESS.includes(pathname);
+
+  /* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */
+  const outlet = <Outlet />;
 
   return (
     <QueryClientProvider client={queryClient}>
       <TimeRangeProvider>
-        <AppShell>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AppShell>
+        {chromeless ? outlet : <AppShell>{outlet}</AppShell>}
       </TimeRangeProvider>
     </QueryClientProvider>
   );

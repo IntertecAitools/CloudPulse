@@ -63,41 +63,47 @@
 
 :root {
   --radius: 0.5rem;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
 
-  /* CloudPulse dark palette */
-  --background: oklch(0.223 0.008 265);
-  --foreground: oklch(0.906 0.005 265);
-  --card: oklch(0.264 0.008 265);
-  --card-foreground: oklch(0.906 0.005 265);
-  --popover: oklch(0.264 0.008 265);
-  --popover-foreground: oklch(0.906 0.005 265);
-  --primary: oklch(0.652 0.155 259);
-  --primary-foreground: oklch(0.985 0.002 265);
-  --secondary: oklch(0.305 0.008 265);
-  --secondary-foreground: oklch(0.906 0.005 265);
-  --muted: oklch(0.305 0.008 265);
-  --muted-foreground: oklch(0.653 0.011 265);
-  --accent: oklch(0.652 0.155 259);
-  --accent-foreground: oklch(0.985 0.002 265);
-  --destructive: oklch(0.605 0.19 22);
-  --destructive-foreground: oklch(0.985 0.002 265);
-  --border: oklch(0.312 0.006 265);
-  --input: oklch(0.312 0.006 265);
-  --ring: oklch(0.652 0.155 259);
-  --chart-1: oklch(0.652 0.155 259);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.264 0.008 265);
-  --sidebar-foreground: oklch(0.906 0.005 265);
-  --sidebar-primary: oklch(0.652 0.155 259);
-  --sidebar-primary-foreground: oklch(0.985 0.002 265);
-  --sidebar-accent: oklch(0.305 0.008 265);
-  --sidebar-accent-foreground: oklch(0.906 0.005 265);
-  --sidebar-border: oklch(0.312 0.006 265);
-  --sidebar-ring: oklch(0.652 0.155 259);
+  /*
+   * CloudPulse palette, derived from the landing page so the marketing
+   * surface and the product read as one system: near-black navy ground,
+   * hairline borders, and the topology accents (teal / blue / amber) as the
+   * chart series. Teal is the primary — it is the colour of a healthy pulse
+   * in the hero animation.
+   */
+  --background: oklch(0.121 0.025 256.3); /* #02060f */
+  --foreground: oklch(0.958 0.015 251.2); /* #eaf2fb */
+  --card: oklch(0.188 0.029 253.7); /* #0a1420 */
+  --card-foreground: oklch(0.958 0.015 251.2);
+  --popover: oklch(0.188 0.029 253.7);
+  --popover-foreground: oklch(0.958 0.015 251.2);
+  --primary: oklch(0.852 0.111 169.1); /* #7ee6c2 */
+  --primary-foreground: oklch(0.173 0.028 169.4); /* #03140e */
+  --secondary: oklch(0.251 0.037 251); /* #142333 */
+  --secondary-foreground: oklch(0.958 0.015 251.2);
+  --muted: oklch(0.251 0.037 251);
+  --muted-foreground: oklch(0.679 0.032 257.8); /* #8c99ac */
+  --accent: oklch(0.852 0.111 169.1);
+  --accent-foreground: oklch(0.173 0.028 169.4);
+  --destructive: oklch(0.706 0.168 22.3); /* #f76f6f */
+  --destructive-foreground: oklch(0.173 0.028 169.4);
+  --border: oklch(0.299 0.042 250.7); /* #1d2f42 */
+  --input: oklch(0.299 0.042 250.7);
+  --ring: oklch(0.852 0.111 169.1);
+  --chart-1: oklch(0.852 0.111 169.1); /* teal  #7ee6c2 */
+  --chart-2: oklch(0.804 0.108 243.1); /* blue  #7fc7ff */
+  --chart-3: oklch(0.885 0.113 81.7); /* amber #ffd27f */
+  --chart-4: oklch(0.768 0.141 301); /* purple #c39dff */
+  --chart-5: oklch(0.775 0.136 9.3); /* pink  #ff8fa3 */
+  --sidebar: oklch(0.153 0.024 258.5); /* #060c16 */
+  --sidebar-foreground: oklch(0.958 0.015 251.2);
+  --sidebar-primary: oklch(0.852 0.111 169.1);
+  --sidebar-primary-foreground: oklch(0.173 0.028 169.4);
+  --sidebar-accent: oklch(0.251 0.037 251);
+  --sidebar-accent-foreground: oklch(0.958 0.015 251.2);
+  --sidebar-border: oklch(0.299 0.042 250.7);
+  --sidebar-ring: oklch(0.852 0.111 169.1);
 }
 
 @theme inline {
@@ -134,6 +140,26 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * The same dot grid and overhead glow the landing page uses, so moving
+   * from marketing into the product doesn't feel like changing products.
+   * Fixed and behind everything; panels sit on top of it.
+   */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(158, 214, 255, 0.055) 1px, transparent 1px),
+      radial-gradient(120% 80% at 50% 0%, #0a1622 0%, #03070d 60%, #02050a 100%);
+    background-size:
+      34px 34px,
+      100% 100%;
   }
 }
 

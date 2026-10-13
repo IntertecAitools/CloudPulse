@@ -1,7 +1,7 @@
 {
-  "name": "cloudpulse-auth",
+  "name": "cloudpulse-monitoring",
   "version": "1.0.0",
-  "description": "",
+  "description": "CloudPulse alert evaluation and dashboard storage service",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,6 +10,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^9.0.5",
+    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.55.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.57.0",
+    "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0"
   }
 }

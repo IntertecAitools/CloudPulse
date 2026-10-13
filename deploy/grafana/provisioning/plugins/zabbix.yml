@@ -1,0 +1,9 @@
+apiVersion: 1
+
+# The Zabbix integration ships as a Grafana *app* plugin, and an app has to be
+# enabled before its datasource type becomes selectable. Doing that here means
+# a fresh `docker compose up` works with no clicking through Grafana's admin UI.
+apps:
+  - type: alexanderzobnin-zabbix-app
+    org_id: 1
+    disabled: false

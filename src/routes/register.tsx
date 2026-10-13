@@ -37,7 +37,7 @@ function Register() {
   const onEnter = (e: React.KeyboardEvent) => { if (e.key === "Enter") submit(); };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#181b1f]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 rounded-lg border border-border bg-card p-8">
         <div className="space-y-1 text-center">
           <h1 className="text-lg font-semibold text-foreground">Create account</h1>
@@ -50,11 +50,11 @@ function Register() {
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <button onClick={submit} disabled={busy || !username || !password || !confirm}
-          className="w-full rounded bg-[#4f8ff7] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+          className="w-full rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">
           {busy ? "Creating..." : "Create account"}
         </button>
         <p className="text-center text-xs text-muted-foreground">
-          Already have an account? <Link to="/login" className="text-[#4f8ff7] hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

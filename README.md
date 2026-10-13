@@ -22,13 +22,88 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 - **Stay in sync**: every change made in Lovable is committed straight to this repository.
 - **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
-## Development
+## Running locally
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+The full stack — Grafana, nginx, and the auth and monitoring services — runs on
+your machine via Docker Compose. Nothing points at a remote host. Requires
+Docker and Node.js.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
 npm i
-npm run dev
+docker compose up -d --build   # Grafana + nginx + auth + monitoring
+npm run dev                    # Vite on :8080
+```
+
+Open <http://localhost:8080>, go to **/register**, and create an account.
+Registration is open, so the first user can just sign up. Then add an AWS
+account under **Settings → Cloud Accounts** using an IAM user with the
+`CloudWatchReadOnlyAccess` policy — local Grafana queries real CloudWatch, so
+panels stay empty until keys are in.
+
+### How it fits together
+
+Vite serves the app on `:8080` and proxies the four API prefixes into nginx on
+`:8081`, which enforces Basic auth and fans out exactly as production does:
+
+| Path | Goes to |
+| --- | --- |
+| `/auth/*` | auth service (`:8082`) — open, no Basic auth |
+| `/alerts-api/*`, `/dashboards-api/*` | monitoring service (`:8083`) |
+| `/grafana/*` | Grafana (`:3000`), with the browser's credential swapped for Grafana's |
+
+Behind Grafana sits the data plane. The app never talks to any of these
+directly — everything goes through Grafana's `/api/ds/query`, so adding a
+signal type means adding a datasource, not a new query layer in the frontend.
+
+| Service | Role |
+| --- | --- |
+| Prometheus (`:9090`) | Metrics for non-AWS targets; also drives uptime checks |
+| Blackbox exporter | HTTP/TCP/ICMP probes that Prometheus scrapes |
+| Loki | Log aggregation |
+| Tempo (`:4317` gRPC, `:4318` HTTP) | OTLP trace ingest |
+| CloudWatch | Added at runtime per AWS account, via Settings |
+
+Prometheus, Loki and Tempo are provisioned into Grafana at startup from
+`deploy/grafana/provisioning/`. They don't pollute the app's AWS account picker,
+which filters datasources to `type === "cloudwatch"`.
+
+**Uptime checks** are files, not config: Prometheus reloads
+`deploy/prometheus/targets/uptime-*.yml` every 30s, so checks can be added and
+removed at runtime without restarting anything. `deploy/prometheus/targets/`
+holds a seed check against the dev server.
+
+State (htpasswd, `alerts.json`, `dashboards.json`) lives in the
+`cloudpulse-state` volume. Grafana, Prometheus, Loki and Tempo each have their
+own volume.
+
+Image tags are pinned deliberately. Tempo is held at 2.x because 3.0
+restructured its config schema (no top-level `ingester`/`compactor` blocks).
+
+### Configuration
+
+Defaults are baked in so `docker compose up` needs no `.env`. To override, put
+any of these in a `.env` next to `docker-compose.yml`:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CLOUDPULSE_PORT` | `8081` | Host port for nginx |
+| `PROMETHEUS_PORT` | `9090` | Host port for Prometheus |
+| `OTLP_GRPC_PORT` / `OTLP_HTTP_PORT` | `4317` / `4318` | Tempo trace ingest |
+| `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | `admin` / `admin` | Grafana admin, also the credential nginx injects |
+| `GRAFANA_TOKEN` | _unset_ | Service-account token; takes precedence over admin basic auth when set |
+| `INVITE_CODE` | _unset_ | Reserved — **not currently enforced by the auth service** |
+| `GMAIL_USER` / `GMAIL_PASS` | _unset_ | Reserved — **email alerts are not wired up yet** |
+
+To point the frontend at a remote deployment instead of the local stack:
+
+```sh
+CLOUDPULSE_API_TARGET=http://your-host npm run dev
+```
+
+Handy commands:
+
+```sh
+docker compose logs -f monitoring   # alert evaluation loop
+docker compose down                 # stop (keeps volumes)
+docker compose down -v              # stop and wipe all local state
 ```

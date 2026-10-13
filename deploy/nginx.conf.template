@@ -1,0 +1,79 @@
+# Rendered by the nginx image's envsubst entrypoint into /etc/nginx/conf.d/.
+# Only ${...} names that exist in the environment are substituted, so nginx's
+# own $host / $http_upgrade / $1 variables pass through untouched.
+#
+# This supersedes the static nginx.conf, which referenced ${GRAFANA_TOKEN}
+# directly -- plain nginx config does no env interpolation, so that header went
+# out as the literal string "Bearer ${GRAFANA_TOKEN}".
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # Docker's embedded DNS. Needed because the container upstreams below are
+    # referenced through variables, which forces nginx to re-resolve per
+    # request instead of caching the IP at startup -- otherwise recreating any
+    # service (compose up after an edit) leaves nginx serving 502s against a
+    # dead IP until it is restarted too.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    # Frontend. Deliberately a literal, not a variable: this resolves through
+    # /etc/hosts (extra_hosts: host-gateway), which nginx's resolver bypasses.
+    # The host gateway IP is stable, so startup resolution is fine here.
+    location / {
+        proxy_pass http://${FRONTEND_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+
+    location = /auth/change-password {
+        set $upstream_auth ${AUTH_UPSTREAM};
+        rewrite ^ /change-password break;
+        proxy_pass http://$upstream_auth;
+        proxy_set_header Host $host;
+    }
+
+    location = /auth/register {
+        set $upstream_auth ${AUTH_UPSTREAM};
+        rewrite ^ /register break;
+        proxy_pass http://$upstream_auth;
+        proxy_set_header Host $host;
+    }
+
+    location /alerts-api/ {
+        auth_basic "CloudPulse";
+        auth_basic_user_file /etc/cloudpulse/htpasswd;
+        set $upstream_monitoring ${MONITORING_UPSTREAM};
+        rewrite ^/alerts-api/(.*)$ /$1 break;
+        proxy_pass http://$upstream_monitoring;
+        proxy_set_header Host $host;
+    }
+
+    location /dashboards-api/ {
+        auth_basic "CloudPulse";
+        auth_basic_user_file /etc/cloudpulse/htpasswd;
+        set $upstream_monitoring ${MONITORING_UPSTREAM};
+        rewrite ^/dashboards-api/(.*)$ /$1 break;
+        proxy_pass http://$upstream_monitoring;
+        proxy_set_header Host $host;
+    }
+
+    # The browser's Basic credential authenticates against htpasswd here and is
+    # then replaced, so the Grafana credential never reaches the client.
+    location /grafana/ {
+        auth_basic "CloudPulse";
+        auth_basic_user_file /etc/cloudpulse/htpasswd;
+        set $upstream_grafana ${GRAFANA_UPSTREAM};
+        rewrite ^/grafana/(.*)$ /$1 break;
+        proxy_pass http://$upstream_grafana;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization "${GRAFANA_AUTH_HEADER}";
+    }
+}

@@ -1,24 +1,26 @@
 export type MetricSeries = { label: string; metricName: string; color?: string };
+
+/**
+ * A panel is provider-agnostic on purpose — each field is interpreted by the
+ * active provider's buildQuery:
+ *
+ *              AWS (CloudWatch)        Azure (Azure Monitor)
+ *   namespace  "AWS/EC2"               "Microsoft.Compute/virtualMachines"
+ *   statistic  Average | Sum | ...     Average | Total | ...
+ *   period     seconds, e.g. "300"     ISO 8601 grain, e.g. "PT5M"
+ *   dimensions CloudWatch dimensions   dimension filters
+ *
+ * `dimensions` absent means the panel follows the resource picker; present
+ * means it queries those dimensions directly. See CloudProvider.isResourceScoped.
+ */
 export type Panel = {
   title: string;
   unit: "percent" | "bytes" | "count";
   namespace: string;
-  statistic: "Average" | "Sum" | "Maximum";
+  statistic: string;
   period: string;
   series: MetricSeries[];
-  dimensions?: Record<string, string>; // custom panels: explicit dims. absent = EC2 default (selected instance)
+  dimensions?: Record<string, string>;
 };
 
-export const panels: Panel[] = [
-  { title: "CPU Utilization", unit: "percent", namespace: "AWS/EC2", statistic: "Average", period: "300",
-    series: [{ label: "CPU %", metricName: "CPUUtilization" }] },
-  { title: "Network In / Out", unit: "bytes", namespace: "AWS/EC2", statistic: "Average", period: "300",
-    series: [
-      { label: "In", metricName: "NetworkIn" },
-      { label: "Out", metricName: "NetworkOut", color: "#e0894f" },
-    ] },
-  { title: "CPU Credit Balance", unit: "count", namespace: "AWS/EC2", statistic: "Average", period: "300",
-    series: [{ label: "Credits", metricName: "CPUCreditBalance", color: "#9d6ff7" }] },
-  { title: "Status Check Failed", unit: "count", namespace: "AWS/EC2", statistic: "Maximum", period: "300",
-    series: [{ label: "Failures", metricName: "StatusCheckFailed", color: "#f76f6f" }] },
-];
+/** Per-provider starter panels live with their provider (lib/providers/*). */

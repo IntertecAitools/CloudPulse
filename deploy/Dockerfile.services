@@ -1,0 +1,19 @@
+# Shared image for both Node services.
+# apache2-utils provides the `htpasswd` binary the auth service shells out to.
+FROM node:22-alpine
+
+RUN apk add --no-cache apache2-utils
+
+WORKDIR /app
+
+# Installed at services/ rather than services/monitoring/ because
+# services/telemetry.mjs is shared by both services and Node resolves
+# node_modules by walking up from the importing file — from services/ that
+# only works if the packages sit there.
+COPY services/monitoring/package.json services/package.json
+RUN cd services && npm install --omit=dev
+
+COPY services/ services/
+COPY scripts/ scripts/
+
+CMD ["node", "services/monitoring/server.mjs"]

@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.git
+.idea
+.lovable
+.tanstack
+.output
+.nitro
+dist
+dist-ssr
+src
+public
+bun.lock
+package-lock.json
+*.log
+services/node_modules

@@ -9,6 +9,11 @@ Browser -> nginx :80 (auth perimeter)
   /dashboards-api/*  -> services/monitoring/server.mjs :8083  (basic auth)
   /grafana/*         -> Grafana (Docker) :3000  (basic auth + token injected)
 
+Locally the same topology runs under docker-compose.yml, with Vite on :8080
+proxying the API prefixes into nginx on :8081. See README "Running locally".
+Service paths/ports/Grafana URL are env-driven (CLOUDPULSE_STATE_DIR, HOST,
+PORT, GRAFANA_URL) so the same code runs in containers or on a host.
+
 State on server: /etc/cloudpulse/ (htpasswd, alerts.json, dashboards.json).
 Secrets: /etc/cloudpulse-style env in systemd units (see deploy/*.service,
 values stripped; deploy/cloudpulse.env.example documents them).

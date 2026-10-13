@@ -1,0 +1,51 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Uptime / synthetic checks. Targets are read from files on disk and reloaded
+  # every 30s, so the monitoring service can add and remove checks at runtime
+  # by writing this directory -- no Prometheus restart, no config API needed.
+  # Kubernetes metrics arrive by remote-write from an in-cluster Prometheus
+  # agent — see deploy/kubernetes/README.md. No scrape job is needed for that
+  # path. If CloudPulse can reach the cluster directly instead (kind, minikube,
+  # Docker Desktop), add a job here for kube-state-metrics and the kubelet.
+
+  - job_name: uptime-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/uptime-*.yml
+        refresh_interval: 30s
+    relabel_configs:
+      # The discovered "address" is really the URL to probe: hand it to
+      # blackbox as ?target=, keep it as the instance label, then point the
+      # actual scrape at the blackbox exporter.
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  - job_name: uptime-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/tcp-*.yml
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115

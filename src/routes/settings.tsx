@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { listAccounts, addAccount, removeAccount, ALL_REGIONS, type Account } from "@/lib/grafana-api";
+import { listAllAccounts, addAccount, removeAccount, ALL_REGIONS, type Account } from "@/lib/grafana-api";
+import { PROVIDER_LIST, providerForAccount, type ProviderId } from "@/lib/providers";
 import { useRequireAuth, clearCreds, currentUser, updateStoredPassword, authFetch } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
@@ -86,7 +87,7 @@ function ProfileTab() {
         <Field label="Confirm new password" value={confirm} onChange={setConfirm} password />
         {msg && <p className={`text-xs ${msg.ok ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}
         <button onClick={change} disabled={busy || !cur || !next || !confirm}
-          className="rounded bg-[#4f8ff7] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">
           {busy ? "Updating..." : "Update password"}
         </button>
       </section>
@@ -96,23 +97,37 @@ function ProfileTab() {
 
 /* ---------------- Cloud Accounts ---------------- */
 
+const CREDENTIAL_HELP: Record<ProviderId, string> = {
+  aws: "Use an IAM user with only the CloudWatchReadOnlyAccess policy. Keys are stored in the backend and never sent to the browser.",
+  azure: "Register an app in Microsoft Entra ID and grant it the Monitoring Reader role on the subscription. The client secret is stored in the backend and never sent to the browser.",
+};
+
 function AccountsTab() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [providerId, setProviderId] = useState<ProviderId>("aws");
   const [name, setName] = useState("");
-  const [accessKey, setAccessKey] = useState("");
-  const [secretKey, setSecretKey] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
   const [region, setRegion] = useState("us-east-1");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const refresh = () => listAccounts().then(setAccounts).catch(() => {});
+  const provider = PROVIDER_LIST.find((p) => p.id === providerId) ?? PROVIDER_LIST[0]!;
+  const refresh = () => listAllAccounts().then(setAccounts).catch(() => {});
   useEffect(() => { refresh(); }, []);
+
+  // Each provider asks for a different set of credentials.
+  useEffect(() => { setValues({}); setMsg(null); }, [providerId]);
+
+  const set = (k: string, v: string) => setValues((cur) => ({ ...cur, [k]: v }));
+  const complete = provider.accountFields.every((f) => (values[f.key] ?? "").trim());
 
   const submit = async () => {
     setBusy(true); setMsg(null);
     try {
-      await addAccount(name.trim(), accessKey.trim(), secretKey.trim(), region);
-      setMsg("Account added"); setName(""); setAccessKey(""); setSecretKey("");
+      const payload: Record<string, string> = { region };
+      for (const f of provider.accountFields) payload[f.key] = (values[f.key] ?? "").trim();
+      await addAccount(providerId, name.trim(), payload);
+      setMsg("Account added"); setName(""); setValues({});
       refresh();
     } catch (e) { setMsg((e as Error).message); }
     setBusy(false);
@@ -121,39 +136,68 @@ function AccountsTab() {
   return (
     <div className="space-y-5">
       <section className="rounded-lg border border-border bg-card p-5 space-y-3">
-        <h2 className="text-sm font-medium text-foreground">Connect an AWS account</h2>
+        <h2 className="text-sm font-medium text-foreground">Connect a cloud account</h2>
+
+        <div className="flex gap-1 rounded-md border border-border bg-background p-1">
+          {PROVIDER_LIST.map((p) => (
+            <button key={p.id} onClick={() => setProviderId(p.id)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded px-3 py-1.5 text-xs transition-colors ${
+                providerId === p.id ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              <span className="grid h-4 w-4 place-items-center rounded-sm text-[8px] font-bold text-white"
+                style={{ background: p.color }}>{p.short}</span>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         <Field label="Account name" value={name} onChange={setName} placeholder="e.g. Production" />
-        <Field label="Access Key ID" value={accessKey} onChange={setAccessKey} placeholder="AKIA..." />
-        <Field label="Secret Access Key" value={secretKey} onChange={setSecretKey} placeholder="secret" password />
-        <label className="block text-xs text-muted-foreground">Default region
-          <select value={region} onChange={(e) => setRegion(e.target.value)}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground">
-            {ALL_REGIONS.map((r) => <option key={r}>{r}</option>)}
-          </select>
-        </label>
-        <button onClick={submit} disabled={busy || !name || !accessKey || !secretKey}
-          className="rounded bg-[#4f8ff7] px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+        {provider.accountFields.map((f) => (
+          <Field key={f.key} label={f.label} value={values[f.key] ?? ""}
+            onChange={(v) => set(f.key, v)}
+            {...(f.placeholder ? { placeholder: f.placeholder } : {})}
+            {...(f.secret ? { password: true } : {})} />
+        ))}
+
+        {provider.id === "aws" && (
+          <label className="block text-xs text-muted-foreground">Default region
+            <select value={region} onChange={(e) => setRegion(e.target.value)}
+              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground">
+              {ALL_REGIONS.map((r) => <option key={r}>{r}</option>)}
+            </select>
+          </label>
+        )}
+
+        <button onClick={submit} disabled={busy || !name || !complete}
+          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">
           {busy ? "Adding..." : "Add account"}
         </button>
         {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Use an IAM user with only the CloudWatchReadOnlyAccess policy. Keys are stored in the backend and never sent to the browser.
-        </p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{CREDENTIAL_HELP[providerId]}</p>
       </section>
 
       <section className="rounded-lg border border-border bg-card p-5 space-y-3">
         <h2 className="text-sm font-medium text-foreground">Connected accounts</h2>
         {accounts.length === 0 && <p className="text-xs text-muted-foreground">None yet.</p>}
-        {accounts.map((a) => (
-          <div key={a.uid} className="flex items-center justify-between rounded border border-border px-3 py-2">
-            <div>
-              <p className="text-sm text-foreground">{a.name}</p>
-              <p className="text-[11px] text-muted-foreground">{a.jsonData?.defaultRegion}</p>
+        {accounts.map((a) => {
+          const p = providerForAccount(a);
+          return (
+            <div key={a.uid} className="flex items-center justify-between rounded border border-border px-3 py-2">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded text-[9px] font-bold text-white"
+                  style={{ background: p.color }}>{p.short}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-foreground">{a.name}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {a.jsonData?.defaultRegion ?? a.jsonData?.subscriptionId ?? p.label}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { if (window.confirm(`Remove "${a.name}"? Panels using it will stop loading.`)) removeAccount(a.uid).then(refresh); }}
+                className="shrink-0 text-xs text-red-400 hover:underline">Remove</button>
             </div>
-            <button onClick={() => { if (window.confirm(`Remove "${a.name}"? Panels using it will stop loading.`)) removeAccount(a.uid).then(refresh); }}
-              className="text-xs text-red-400 hover:underline">Remove</button>
-          </div>
-        ))}
+          );
+        })}
       </section>
     </div>
   );
@@ -166,7 +210,7 @@ function AboutTab() {
 
   useEffect(() => {
     Promise.all([
-      listAccounts().catch(() => []),
+      listAllAccounts().catch(() => []),
       authFetch("/dashboards-api/dashboards").then((r) => r.json()).catch(() => []),
       authFetch("/alerts-api/rules").then((r) => r.json()).catch(() => []),
     ]).then(([a, d, al]) => setCounts({
@@ -195,7 +239,7 @@ function AboutTab() {
         ))}
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Providers: AWS (live) · Azure, GCP, Oracle, Huawei (coming soon). Alert rules are evaluated every 60 seconds.
+        Providers: AWS and Azure (live) · GCP, Oracle, Huawei (coming soon). Alert rules are evaluated every 60 seconds.
       </p>
     </section>
   );

@@ -1,0 +1,75 @@
+// Log collection for CloudPulse.
+//
+// Alloy tails every container's stdout/stderr and ships it to Loki, so the
+// Logs page has data with nothing to configure per service. This is the
+// equivalent of the Datadog/Dynatrace agent's log module — the difference is
+// it only sees containers on this host, not your fleet. For remote hosts,
+// point their own Alloy or Promtail at this Loki.
+
+logging {
+  level  = "warn"
+  format = "logfmt"
+}
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+// Turn Docker's metadata into labels worth querying on. Keep this set small:
+// every distinct label combination is a separate Loki stream, and high
+// cardinality is the usual way people make Loki slow and expensive.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  labels     = { job = "docker" }
+  forward_to = [loki.process.enrich.receiver]
+}
+
+// Tag obvious error lines so the UI can offer a "errors only" filter without
+// a full-text scan on every query.
+loki.process "enrich" {
+  // Containers have been running for days and Alloy tails each log from the
+  // start. Loki refuses anything far behind its ingest head ("entry too far
+  // behind"), so the first batch fails wholesale. Historic container output
+  // has no value here — drop it rather than widening Loki's limits and
+  // dragging stale streams along forever.
+  stage.drop {
+    older_than          = "1h"
+    drop_counter_reason = "too_old"
+  }
+
+  stage.regex {
+    expression = "(?i)(?P<detected_level>error|warn|fatal|panic)"
+  }
+  stage.labels {
+    values = { level = "detected_level" }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

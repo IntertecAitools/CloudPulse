@@ -39,7 +39,7 @@ export function useRequireAuth() {
 export function currentUser(): string | null {
   const c = getCreds();
   if (!c) return null;
-  try { return atob(c).split(":")[0]; } catch { return null; }
+  try { return atob(c).split(":")[0] ?? null; } catch { return null; }
 }
 
 export function updateStoredPassword(newPass: string) {

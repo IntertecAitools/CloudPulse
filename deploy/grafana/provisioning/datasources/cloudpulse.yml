@@ -1,0 +1,56 @@
+apiVersion: 1
+
+# Provisioned at Grafana startup so the query engine knows about the whole data
+# plane without any manual setup. CloudWatch accounts are deliberately NOT here
+# -- users add those at runtime via Settings, and the frontend's account picker
+# filters datasources to type === "cloudwatch", so these never appear in it.
+
+datasources:
+  - name: Prometheus
+    uid: cloudpulse-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 30s
+
+  - name: Loki
+    uid: cloudpulse-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+
+  # Agent-based monitoring for anything that isn't a cloud API: bare metal,
+  # VMs, network gear. Zabbix ships with CloudPulse, so this points at the
+  # bundled server rather than expecting an external one.
+  - name: Zabbix
+    uid: cloudpulse-zabbix
+    type: alexanderzobnin-zabbix-datasource
+    access: proxy
+    url: http://zabbix-web:8080/api_jsonrpc.php
+    jsonData:
+      username: ${ZABBIX_API_USER}
+      trends: true
+      trendsFrom: 7d
+      trendsRange: 4d
+      cacheTTL: 1h
+      # Zabbix stores raw history briefly and trends for much longer; letting
+      # the plugin fall back to trends keeps long time ranges answerable.
+      disableReadOnlyUsersAck: true
+    secureJsonData:
+      password: ${ZABBIX_API_PASSWORD}
+
+  - name: Tempo
+    uid: cloudpulse-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # Jump from a trace to the logs that belong to it.
+      tracesToLogsV2:
+        datasourceUid: cloudpulse-loki
+        spanStartTimeShift: -5m
+        spanEndTimeShift: 5m
+      serviceMap:
+        datasourceUid: cloudpulse-prometheus

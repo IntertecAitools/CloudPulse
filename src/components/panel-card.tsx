@@ -2,15 +2,17 @@ import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, X
 import { useTimeRange } from "@/lib/time-range";
 import type { Panel } from "@/config/panels";
 import { useMetric, formatValue } from "@/hooks/use-metric";
+import { ACCENT, CHART_AXIS, CHART_GRID, CHART_TOOLTIP_BG } from "@/lib/chart-theme";
+import type { Account } from "@/lib/providers";
 
-const ACCENT = "#4f8ff7";
-
-export function PanelCard({ panel, dsUid, instanceIds, region }: {
-  panel: Panel; dsUid: string; instanceIds: string[]; region: string;
+export function PanelCard({ panel, account, resourceIds, scope }: {
+  panel: Panel; account: Account | undefined; resourceIds: string[]; scope: string;
 }) {
   const { range } = useTimeRange();
-  const { data, series, loading, error, retry } = useMetric(panel, range, dsUid, instanceIds, region);
-  const latest = data.length && series.length ? data[data.length - 1][series[0].key] : undefined;
+  const { data, series, loading, error, retry } = useMetric(panel, range, account, resourceIds, scope);
+  const lastRow = data[data.length - 1];
+  const firstSeries = series[0];
+  const latest = lastRow && firstSeries ? lastRow[firstSeries.key] : undefined;
 
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-card">
@@ -45,13 +47,13 @@ export function PanelCard({ panel, dsUid, instanceIds, region }: {
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid stroke="#2c3235" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="time" stroke="#8e939c" fontSize={11} tickLine={false} axisLine={false} minTickGap={40}
+              <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="time" stroke={CHART_AXIS} fontSize={11} tickLine={false} axisLine={false} minTickGap={40}
                 tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} />
-              <YAxis stroke="#8e939c" fontSize={11} tickLine={false} axisLine={false} width={52}
+              <YAxis stroke={CHART_AXIS} fontSize={11} tickLine={false} axisLine={false} width={52}
                 tickFormatter={(v) => formatValue(v, panel.unit)} />
               <Tooltip
-                contentStyle={{ background: "#181b1f", border: "1px solid #2c3235", borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: CHART_TOOLTIP_BG, border: `1px solid ${CHART_GRID}`, borderRadius: 8, fontSize: 12 }}
                 labelFormatter={(t) => new Date(t as number).toLocaleString()}
                 formatter={(value: number, name: string) => [formatValue(value, panel.unit), name]} />
               {series.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
@@ -64,7 +66,7 @@ export function PanelCard({ panel, dsUid, instanceIds, region }: {
         )}
         {!error && !loading && data.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-xs text-muted-foreground">No data — select at least one instance, or metrics may take a few minutes.</p>
+            <p className="text-xs text-muted-foreground">No data — select at least one resource, or metrics may take a few minutes.</p>
           </div>
         )}
       </div>

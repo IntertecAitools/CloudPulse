@@ -1,9 +1,21 @@
+import "../telemetry.mjs";
+
 import { createServer } from "node:http";
-import { readFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { execFile } from "node:child_process";
 
-const FILE = "/etc/cloudpulse/htpasswd";
+const STATE_DIR = process.env.CLOUDPULSE_STATE_DIR || "/etc/cloudpulse";
+const FILE = join(STATE_DIR, "htpasswd");
+const HOST = process.env.HOST || "127.0.0.1";
+const PORT = Number(process.env.PORT) || 8082;
 const INVITE = process.env.INVITE_CODE || "";
+
+// `htpasswd -b` (no -c) fails outright when the file is absent, so a fresh
+// install could never register its first user. Create an empty one up front --
+// empty means nginx's auth_basic rejects everyone until someone registers.
+mkdirSync(STATE_DIR, { recursive: true });
+try { closeSync(openSync(FILE, "a")); } catch (e) { console.error(`Cannot open ${FILE}:`, e.message); }
 
 const server = createServer((req, res) => {
   if (req.method !== "POST" || !["/register", "/change-password"].includes(req.url)) {
@@ -55,4 +67,4 @@ const server = createServer((req, res) => {
   });
 });
 
-server.listen(8082, "127.0.0.1", () => console.log("auth service on 8082"));
+server.listen(PORT, HOST, () => console.log(`auth service on ${HOST}:${PORT}, state in ${STATE_DIR}`));
