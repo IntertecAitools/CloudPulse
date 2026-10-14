@@ -24,21 +24,65 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 
 ## Running locally
 
-The full stack — Grafana, nginx, and the auth and monitoring services — runs on
-your machine via Docker Compose. Nothing points at a remote host. Requires
-Docker and Node.js.
+Everything runs on your machine via Docker Compose — 13 containers plus the
+Vite dev server. Nothing points at a remote host.
+
+### Prerequisites
+
+| | Tested with |
+| --- | --- |
+| Docker Desktop (running) | 29.4.3 |
+| Docker Compose | 5.1.3 |
+| Node.js | 24.x (20+ works) |
+
+Docker needs roughly **4 GB of RAM** available — Zabbix, Postgres, Grafana and
+the three stores add up.
+
+### Start it
 
 ```sh
-npm i
-docker compose up -d --build   # Grafana + nginx + auth + monitoring
-npm run dev                    # Vite on :8080
+git clone https://github.com/IntertecAitools/CloudPulse.git
+cd CloudPulse/cloud-pulse-dashboard
+
+npm install            # ~1 min, first time only
+docker compose up -d   # ~25s warm, several minutes on a cold pull
+npm run dev            # Vite on :8080, ~30s to first serve
 ```
 
-Open <http://localhost:8080>, go to **/register**, and create an account.
-Registration is open, so the first user can just sign up. Then add an AWS
-account under **Settings → Cloud Accounts** using an IAM user with the
-`CloudWatchReadOnlyAccess` policy — local Grafana queries real CloudWatch, so
-panels stay empty until keys are in.
+Open <http://localhost:8080>.
+
+The **first `docker compose up` is much slower** than later ones: it pulls
+~10 images and Grafana downloads the Zabbix plugin. Give it a few minutes and
+watch `docker compose ps` until everything reads `Up`.
+
+### First login
+
+1. Go to **/register** and create an account. Registration is open, so the
+   first user just signs up.
+2. **Settings → Cloud Accounts** — connect AWS (an IAM user with
+   `CloudWatchReadOnlyAccess`) or Azure (an Entra app with *Monitoring Reader*).
+
+Cloud pages stay empty until an account is connected — CloudPulse queries your
+real cloud APIs and never fabricates data.
+
+### What works immediately, with no setup
+
+- **Logs** — Alloy ships every container's output into Loki from the moment
+  the stack starts
+- **Traces** — CloudPulse instruments its own services, so Tempo has data
+- **Servers** — the bundled Zabbix agent monitors the host
+
+### Checking it came up
+
+```sh
+docker compose ps                  # all 13 should read Up
+node scripts/verify-zabbix.mjs     # end-to-end Zabbix check
+```
+
+Grafana registers its datasource plugins a few seconds after the container
+reports `Up`. A health check run immediately can return
+`Plugin not registered` for Tempo — wait ~10s and retry before assuming
+something is broken.
 
 ### How it fits together
 
